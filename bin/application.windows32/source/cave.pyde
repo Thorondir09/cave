@@ -8,10 +8,11 @@ highscore = 0
 
 
 def setup():
-  global grav, topseed, botseed, speed, rad, startstamp, roof, floor, player
+  global grav, topseed, botseed, offseed, speed, rad, startstamp, roof, floor, player
   grav = 1
   topseed = int(random(1000))
   botseed = int(random(1000))
+  offseed = int(random(1000))
   speed = 5
   rad = 10
   startstamp = time.time()
@@ -22,7 +23,7 @@ def setup():
   roof = terrain('roof')
   floor = terrain('floor')
 
-  player = plane()
+  player = plane((roof.mid + floor.mid)/2)
 
 
 def lose():
@@ -32,8 +33,8 @@ def lose():
   setup()
 
 class plane:
-  def __init__(self):
-    self.y = h/2
+  def __init__(self, spawnpos):
+    self.y = spawnpos
     self.force = 0
     self.c = color(0,200,0)
 
@@ -50,12 +51,15 @@ class plane:
     popMatrix()
 
 class terrain:
-  def __init__(self, mode,):
+  def __init__(self, mode):
     self.mode = mode
     self.x = 0
     self.vertices = []
-  def display(self):
+    self.mid = 0
 
+    self.gen()
+
+  def gen(self):
 
     pushMatrix()
     fill(color(240, 180, 70))
@@ -67,17 +71,26 @@ class terrain:
 
     beginShape()
 
+    self.vertices = []
+    offmult = 150
+    noiseSeed(offseed)
+
+    for i in range(w):
+      pos = self.x + i
+      y = noise(pos*noisescale)*offmult
+      self.vertices.append([i,y])
+
     if self.mode == 'floor': noiseSeed(botseed)
     else: noiseSeed(topseed)
     ymax = 0
-    self.vertices = []
+
     for i in range(w):
       pos = self.x + i
-      y = noise(pos*noisescale)*noisemult
-      self.vertices.append((i, y))
-      if y < ymax:
-        ymax = y
-      vertex(i, y)
+      y = noise(pos*noisescale)*noisemult      
+      self.vertices[i][1] += y
+      if self.vertices[i][1] < ymax:
+        ymax = self.vertices[i][1]
+      vertex(i, self.vertices[i][1])
     if self.mode == 'floor':
       vertex(w , ymax+250)
       vertex(0 , ymax+250)
@@ -85,9 +98,20 @@ class terrain:
       vertex(w , -150)
       vertex(0 , -150)
 
+    self.mid = self.getGlobalPos(self.vertices[w/2][1])
+
     endShape(CLOSE)
     popMatrix()
     self.x += speed
+
+
+  def getGlobalPos(self,y):
+    if self.mode == 'floor': return h + y - 250
+    else: return y + 150 
+
+  def display(self):
+
+    self.gen()
 
     for i in self.vertices[w/2-rad:w/2+rad+1]:
       if (dist(w/2, player.y, i[0], h + i[1] - 250) < rad and self.mode == 'floor') or (dist(w/2, player.y, i[0], i[1] + 150) < rad and self.mode == 'roof'):
